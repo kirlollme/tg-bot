@@ -1,14 +1,17 @@
-package io.proj3ct.SpringDemoBot.service;
+package io.project.bookingbot.service;
 
 
 import com.vdurmont.emoji.EmojiParser;
-import io.proj3ct.SpringDemoBot.config.BotConfig;
-import io.proj3ct.SpringDemoBot.model.Ads;
-import io.proj3ct.SpringDemoBot.model.AdsRepository;
-import io.proj3ct.SpringDemoBot.model.User;
-import io.proj3ct.SpringDemoBot.model.UserRepository;
+import io.project.bookingbot.config.BotConfig;
+import io.project.bookingbot.eventHandler.menuHandler.MenuHandler;
+import io.project.bookingbot.eventHandler.startHandler.StartHandler;
+import io.project.bookingbot.model.Ads;
+import io.project.bookingbot.model.AdsRepository;
+import io.project.bookingbot.model.User;
+import io.project.bookingbot.model.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -31,12 +34,16 @@ import java.util.List;
 
 @Slf4j
 @Component
+@Scope("singleton")
 public class TelegramBot extends TelegramLongPollingBot {
 
     @Autowired
     private UserRepository userRepository;
     @Autowired
     private AdsRepository adsRepository;
+
+    private final MenuHandler menuHandler;
+    private final StartHandler startHandler;
     final BotConfig config;
 
     static final String HELP_TEXT = "This bot is created to demonstrate Spring capabilities.\n\n" +
@@ -50,7 +57,10 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     static final String ERROR_TEXT = "Error occurred: ";
 
-    public TelegramBot(BotConfig config) {
+    @Autowired
+    public TelegramBot(MenuHandler menuHandler, StartHandler startHandler, BotConfig config) {
+        this.menuHandler = menuHandler;
+        this.startHandler = startHandler;
         this.config = config;
         List<BotCommand> listofCommands = new ArrayList<>();
         listofCommands.add(new BotCommand("/start", "get a welcome message"));
@@ -82,7 +92,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
 
-            if(messageText.contains("/send") && config.getOwnerId() == chatId) {
+            if(messageText.contains("/send")) {
                 var textToSend = EmojiParser.parseToUnicode(messageText.substring(messageText.indexOf(" ")));
                 var users = userRepository.findAll();
                 for (User user: users){
@@ -94,9 +104,11 @@ public class TelegramBot extends TelegramLongPollingBot {
 
                 switch (messageText) {
                     case "/start":
-
-                        registerUser(update.getMessage());
-                        startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+                        try {
+                            execute( startHandler.initDialog(chatId,update.getMessage().getChat().getFirstName()));
+                        } catch (TelegramApiException e) {
+                            throw new RuntimeException(e);
+                        }
                         break;
 
                     case "/help":
@@ -104,7 +116,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                         prepareAndSendMessage(chatId, HELP_TEXT);
                         break;
 
-                    case "/register":
+                    case "register":
 
                         register(chatId);
                         break;

@@ -1,4 +1,4 @@
-package io.proj3ct.SpringDemoBot.config;
+package io.project.bookingbot.config;
 
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +18,4 @@ public class BotConfig {
     @Value("${bot.token}")
     String token;
 
-    @Value("${bot.owner}")
-    Long ownerId;
 }

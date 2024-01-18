@@ -1,4 +1,4 @@
-package io.proj3ct.SpringDemoBot;
+package io.project.bookingbot;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

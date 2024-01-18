@@ -1,4 +1,4 @@
-package io.proj3ct.SpringDemoBot.model;
+package io.project.bookingbot.model;
 
 import org.springframework.data.repository.CrudRepository;
 

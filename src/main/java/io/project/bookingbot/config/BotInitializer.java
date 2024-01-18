@@ -1,6 +1,6 @@
-package io.proj3ct.SpringDemoBot.config;
+package io.project.bookingbot.config;
 
-import io.proj3ct.SpringDemoBot.service.TelegramBot;
+import io.project.bookingbot.service.TelegramBot;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.ContextRefreshedEvent;
