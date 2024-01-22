@@ -3,7 +3,9 @@ package io.project.bookingbot.eventHandler.startHandler;
 
 import com.vdurmont.emoji.EmojiParser;
 import io.project.bookingbot.constant.StartMenuConstant;
+import io.project.bookingbot.factory.MessageFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
@@ -16,13 +18,19 @@ import java.util.List;
 @Slf4j
 public class StartHandlerImpl implements StartHandler{
 
+    private final MessageFactory messageFactory;
 
+
+    @Autowired
+    public StartHandlerImpl(MessageFactory messageFactory) {
+        this.messageFactory = messageFactory;
+    }
 
     @Override
     public SendMessage initDialog(long chatId, String name) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText(createWelcomeMsg( name ));
+        message.setText(messageFactory.createWelcomeMsg( name ));
 
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
 
@@ -49,10 +57,4 @@ public class StartHandlerImpl implements StartHandler{
         return message;
     }
 
-    private String createWelcomeMsg( String name){
-
-        String answer = EmojiParser.parseToUnicode("Здравствуйте , " + name + ", добро пожаловать, в наш бот, здесь вы можете забронировать кабинет для работы!" + " :blush:");
-        log.info("Replied to user " + name);
-        return answer;
-    }
 }

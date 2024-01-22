@@ -1,12 +1,22 @@
 package io.project.bookingbot.eventHandler.menuHandler;
 
+import org.telegram.telegrambots.meta.api.methods.send.SendLocation;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
+
 public interface MenuHandler {
-    void getPhoto();
+    SendMessage getPhoto();
 
-    void getPrices();
+    SendMessage getOffices();
+    InlineKeyboardMarkup getButtonsForCriteriaBooking(String page);
 
-    void getCriterionBooking();
+    SendMessage getCriterionBooking(long chatId, String page);
 
-    void getContacts();
+    SendMessage getContacts(long chatId);
+
+    SendLocation getLocation(long chatId);
+    InlineKeyboardMarkup getReplyMarkup();
 
 }

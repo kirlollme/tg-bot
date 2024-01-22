@@ -5,6 +5,7 @@ import com.vdurmont.emoji.EmojiParser;
 import io.project.bookingbot.config.BotConfig;
 import io.project.bookingbot.eventHandler.menuHandler.MenuHandler;
 import io.project.bookingbot.eventHandler.startHandler.StartHandler;
+import io.project.bookingbot.factory.MessageFactory;
 import io.project.bookingbot.model.Ads;
 import io.project.bookingbot.model.AdsRepository;
 import io.project.bookingbot.model.User;
@@ -17,7 +18,11 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
@@ -28,15 +33,22 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.File;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+
+import static io.project.bookingbot.constant.ButtonRequestConstant.ROUTE;
+import static io.project.bookingbot.constant.CriterionBooking.*;
+import static io.project.bookingbot.constant.StartMenuConstant.*;
 
 @Slf4j
 @Component
 @Scope("singleton")
 public class TelegramBot extends TelegramLongPollingBot {
 
+    @Autowired
+    private MessageFactory messageFactory;
     @Autowired
     private UserRepository userRepository;
     @Autowired
@@ -88,6 +100,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
 
+
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
@@ -101,78 +114,77 @@ public class TelegramBot extends TelegramLongPollingBot {
             }
 
             else {
+                try {
 
-                switch (messageText) {
-                    case "/start":
-                        try {
-                            execute( startHandler.initDialog(chatId,update.getMessage().getChat().getFirstName()));
-                        } catch (TelegramApiException e) {
-                            throw new RuntimeException(e);
-                        }
-                        break;
 
-                    case "/help":
+                    switch (messageText) {
+                        case "/start":
+                            execute(startHandler.initDialog(chatId, update.getMessage().getChat().getFirstName()));
+                            break;
 
-                        prepareAndSendMessage(chatId, HELP_TEXT);
-                        break;
+                        case START_MENU_CONTACTS:
+                            execute(menuHandler.getContacts(chatId));
+                            break;
+//                            SendPhoto sendPhoto = new SendPhoto();
+//                            sendPhoto.setChatId(String.valueOf(chatId));
+//                            sendPhoto.setPhoto(new InputFile("https://ibb.co/FnBtwtj"));
+//                            sendPhoto.setCaption("test");
+                            //execute(sendPhoto);
+                        case START_MENU_CRITERION:
+                            execute(menuHandler.getCriterionBooking( chatId,PAGE_1));
+                            break;
+                        default:
 
-                    case "register":
+                            prepareAndSendMessage(chatId, "Sorry, command was not recognized");
 
-                        register(chatId);
-                        break;
-
-                    default:
-
-                        prepareAndSendMessage(chatId, "Sorry, command was not recognized");
-
+                    }
+                } catch (TelegramApiException e){
+                    throw new RuntimeException(e);
                 }
             }
         } else if (update.hasCallbackQuery()) {
             String callbackData = update.getCallbackQuery().getData();
-            long messageId = update.getCallbackQuery().getMessage().getMessageId();
+            Integer messageId = update.getCallbackQuery().getMessage().getMessageId();
             long chatId = update.getCallbackQuery().getMessage().getChatId();
 
-            if(callbackData.equals(YES_BUTTON)){
-                String text = "You pressed YES button";
-                executeEditMessageText(text, chatId, messageId);
+            if (callbackData.equals(ROUTE) || callbackData.equals(ROUTE + " ")) {
+                try {
+                    EditMessageReplyMarkup editMessageReplyMarkup = new EditMessageReplyMarkup();
+                    editMessageReplyMarkup.setChatId(String.valueOf(chatId));
+                    editMessageReplyMarkup.setMessageId(messageId);
+                    editMessageReplyMarkup.setReplyMarkup(menuHandler.getReplyMarkup());
+                    execute(editMessageReplyMarkup);
+                    execute(menuHandler.getLocation(chatId));
+                } catch (TelegramApiException e) {
+                    throw new RuntimeException(e);
+                }
             }
-            else if(callbackData.equals(NO_BUTTON)){
-                String text = "You pressed NO button";
-                executeEditMessageText(text, chatId, messageId);
+            if (callbackData.equals("DELETE")) {
+                try {
+                    DeleteMessage deleteMessage = new DeleteMessage();
+                    deleteMessage.setChatId(String.valueOf(chatId));
+                    deleteMessage.setMessageId(messageId);
+                    execute(deleteMessage);
+                } catch (TelegramApiException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            if (callbackData.equals(PAGE_1) || callbackData.equals(PAGE_2) || callbackData.equals(PAGE_3)) {
+                try {
+                    EditMessageText editMessageText = new EditMessageText();
+                    editMessageText.setMessageId(messageId);
+                    editMessageText.setChatId(String.valueOf(chatId));
+                    editMessageText.setText(messageFactory.createHtmlRulesMsg(callbackData));
+                    editMessageText.setParseMode("Markdown");
+                    editMessageText.setReplyMarkup(menuHandler.getButtonsForCriteriaBooking(callbackData));
+                    execute(editMessageText);
+                } catch (TelegramApiException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
 
 
-    }
-
-    private void register(long chatId) {
-
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("Do you really want to register?");
-
-        InlineKeyboardMarkup markupInLine = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
-        List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-        var yesButton = new InlineKeyboardButton();
-
-        yesButton.setText("Yes");
-        yesButton.setCallbackData(YES_BUTTON);
-
-        var noButton = new InlineKeyboardButton();
-
-        noButton.setText("No");
-        noButton.setCallbackData(NO_BUTTON);
-
-        rowInLine.add(yesButton);
-        rowInLine.add(noButton);
-
-        rowsInLine.add(rowInLine);
-
-        markupInLine.setKeyboard(rowsInLine);
-        message.setReplyMarkup(markupInLine);
-
-        executeMessage(message);
     }
 
     private void registerUser(Message msg) {
